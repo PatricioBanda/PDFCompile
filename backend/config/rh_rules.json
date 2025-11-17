@@ -1,0 +1,5 @@
+{
+    "default": {
+        "allowed_extensions": [".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    }
+}

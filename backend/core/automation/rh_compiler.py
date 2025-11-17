@@ -1,0 +1,2 @@
+class RHCompiler:
+    pass

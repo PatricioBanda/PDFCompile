@@ -1,0 +1,197 @@
+:root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-alt: #334155;
+    --text: #e2e8f0;
+    --text-soft: #94a3b8;
+    --accent: #38bdf8;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* HEADER */
+#topbar {
+    background: var(--panel);
+    padding: 15px;
+    text-align: center;
+    font-size: 1.2rem;
+    border-bottom: 3px solid var(--panel-alt);
+}
+
+/* LAYOUT */
+#layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* SIDEBAR */
+#sidebar {
+    width: 280px;
+    background: var(--panel);
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 3px solid var(--panel-alt);
+}
+
+#drop-zone {
+    background: var(--panel-alt);
+    padding: 20px;
+    border: 2px dashed var(--accent);
+    text-align: center;
+    margin-bottom: 10px;
+    border-radius: 6px;
+}
+
+#file-input {
+    display: none;
+}
+
+#sidebar button {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: var(--panel-alt);
+    border: none;
+    border-radius: 4px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+#document-list li {
+    padding: 6px;
+    background: var(--panel-alt);
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+
+/* PREVIEW AREA */
+#preview-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: var(--panel);
+    border-bottom: 3px solid var(--panel-alt);
+}
+
+#preview-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#pdf-preview {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* RIGHT PANEL */
+#right-panel {
+    width: 260px;
+    background: var(--panel);
+    padding: 20px;
+    border-left: 3px solid var(--panel-alt);
+    overflow-y: auto;
+}
+
+#thumbnails img {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* FOOTER */
+#footer {
+    background: var(--panel);
+    padding: 10px;
+    gap: 10px;
+    display: flex;
+    align-items: center;
+    border-top: 3px solid var(--panel-alt);
+}
+
+#footer button {
+    padding: 8px 12px;
+}
+
+#logs {
+    flex: 1;
+    text-align: right;
+    color: var(--text-soft);
+}
+#quarter-select {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: var(--panel-alt);
+    border-radius: 6px;
+}
+
+#quarter-select h3 {
+    margin-top: 0;
+    color: var(--accent);
+}
+#year-select {
+    background: var(--panel-alt);
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+}
+
+#year-select h3 {
+    margin: 0 0 8px 0;
+    color: var(--accent);
+}
+
+#year-dropdown {
+    width: 100%;
+    padding: 8px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+}
+#scan-results-panel {
+    background: #1a1a1a;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 6px;
+}
+
+.scan-month-block {
+    background: #222;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+}
+#base-join-panel {
+    background: #1a1a1a;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 8px;
+}
+
+.base-join-block {
+    background: #222;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.btn-open {
+    color: #4ea1ff;
+    text-decoration: underline;
+}
