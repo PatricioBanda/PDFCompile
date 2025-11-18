@@ -47,27 +47,19 @@ def scan_months(request: ScanRequest) -> Dict[str, Any]:
 
 
 @router.post("/join/base")
-def join_base(request: JoinRequest):
+def generate_base_join(request: JoinRequest):
     rh_root = get_rh_root_for_year(request.year)
-    state_manager = StateManager(rh_root)
     merger = PDFMergerEngine(rh_root)
 
-    output = {}
+    results = {}
 
     for month_key in request.months:
-        state = state_manager.load_state(request.year, month_key)
+        pdf_path, warnings = merger.merge_month(month_key)
 
-        if "groups" not in state:
-            raise HTTPException(400, f"Mês {month_key} ainda não foi scaneado.")
+        results[month_key] = {
+            "pdf": pdf_path,
+            "warnings": warnings
+        }
 
-        pdf_path, warnings = merger.merge_month(month_key, state["groups"])
+    return results
 
-        state["base_pdf"] = pdf_path
-        state["base_pdf_created"] = datetime.datetime.now().isoformat()
-        state["warnings"] = warnings
-
-        state_manager.save_state(request.year, month_key, state)
-
-        output[month_key] = {"pdf": pdf_path, "warnings": warnings}
-
-    return output

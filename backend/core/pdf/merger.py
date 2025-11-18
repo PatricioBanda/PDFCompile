@@ -1,41 +1,43 @@
 import os
 from PyPDF2 import PdfMerger
-from backend.utils.path_utils import ensure_dir, join_path
+from backend.utils.path_utils import join_path, ensure_dir, list_files
+
 
 class PDFMergerEngine:
     def __init__(self, rh_root: str):
         self.rh_root = rh_root
-        self.output_dir = join_path(rh_root, "14")
-        ensure_dir(self.output_dir)
 
-    def merge_month(self, month_key: str, groups: list):
+    def merge_month(self, month_key: str):
         """
-        Receives groups = scanner_result["groups"]
-        Produces base_<month>.pdf inside RH/<year>/14/
+        Merge PDFs ONLY from groups 2–13 and output to:
+        RH/14/base_<month_key>.pdf
         """
-        pdfs = []
+        merger = PdfMerger()
         warnings = []
 
-        for g in groups:
-            for file in sorted(g["files"]):
-                pdfs.append(file)
+        # collect PDFs from groups 2–13
+        for group in range(2, 14):
+            group_dir = join_path(self.rh_root, str(group), month_key)
 
-            if len(g["files"]) == 0:
-                warnings.append(f"Grupo {g['group']} vazio.")
+            if not os.path.isdir(group_dir):
+                warnings.append(f"Group {group} missing folder {group_dir}")
+                continue
 
-        output_path = join_path(self.output_dir, f"base_{month_key}.pdf")
+            pdfs = list_files(group_dir, extension=".pdf")
 
-        if pdfs:
-            merger = PdfMerger()
-            for p in pdfs:
+            for pdf in pdfs:
                 try:
-                    merger.append(p)
+                    merger.append(pdf)
                 except Exception as e:
-                    warnings.append(f"Erro em {p}: {str(e)}")
+                    warnings.append(f"Error adding {pdf}: {e}")
 
-            merger.write(output_path)
-            merger.close()
-        else:
-            warnings.append("Nenhum PDF encontrado no mês.")
+        # Output folder = RH/14/<month_key>/
+        out_dir = join_path(self.rh_root, "14", month_key)
+        ensure_dir(out_dir)
 
-        return output_path, warnings
+        out_pdf = join_path(out_dir, f"base_{month_key}.pdf")
+
+        merger.write(out_pdf)
+        merger.close()
+
+        return out_pdf, warnings
