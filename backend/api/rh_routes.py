@@ -1,142 +1,73 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
+import datetime
 import os
 
+from backend.utils.config_loader import get_settings
 from backend.core.automation.rh_scanner import RHScanner
 from backend.core.automation.state_manager import StateManager
+from backend.core.pdf.merger import PDFMergerEngine
 
 router = APIRouter()
 
-# ⚠️ Ajusta este caminho base para a tua estrutura
-BASE_RH_ROOT = r"C:\Users\Patricio Vargas\INCENTAHEAD CONSULTING, UNIPESSOAL LDA\INCENTAHEAD - Documentos (1)\4.Projetos\4.3.Execução\0. Afetação Pessoal Empresas\Agix\0. Pasta Partilhada"
-
 class ScanRequest(BaseModel):
-    year: str           # "2025"
-    months: List[str]   # ["07_2025", "08_2025"]
-
-class ScanResult(BaseModel):
     year: str
-    months: Dict[str, Any]
+    months: List[str]
 
+class JoinRequest(BaseModel):
+    year: str
+    months: List[str]
 
 def get_rh_root_for_year(year: str) -> str:
-    """
-    Constrói o caminho para a pasta RH de um dado ano.
-    Ex: BASE/2025/RH
-    """
-    rh_root = os.path.join(BASE_RH_ROOT, year, "RH")
+    settings = get_settings()
+    base_root = settings.get("RH_BASE_ROOT")
+
+    rh_root = os.path.join(base_root, year, "RH")
+    rh_root = os.path.normpath(rh_root)
     if not os.path.exists(rh_root):
-        raise HTTPException(status_code=400, detail=f"Pasta RH não encontrada para o ano {year}: {rh_root}")
+        raise HTTPException(status_code=400, detail=f"Pasta RH não encontrada: {rh_root}")
     return rh_root
 
 
-@router.post("/scan", response_model=ScanResult)
-def scan_months(request: ScanRequest):
-    """
-    Faz o scan dos grupos 2..13 para os meses indicados e atualiza o state_YYYY.json.
-    """
-    rh_root = get_rh_root_for_year(request.year)
-
-    scanner = RHScanner(rh_root)
-    state_manager = StateManager(rh_root)
-
-    result_by_month: Dict[str, Any] = {}
-
-    for month_key in request.months:
-        # garantir estrutura no state
-        state = state_manager.load_state(request.year)
-        state_manager.ensure_month(state, month_key)
-        state_manager.save_state(request.year, state)
-
-        # correr o scanner para o mês
-        month_state = scanner.scan_month(request.year, month_key)
-        result_by_month[month_key] = month_state
-
-    return ScanResult(
-        year=request.year,
-        months=result_by_month
-    )
-from backend.core.pdf.merger import PDFMergerEngine
-import datetime
-
-class JoinRequest(BaseModel):
-    year: str
-    months: List[str]
-
-@router.post("/join/base")
-def generate_base_join(request: JoinRequest):
-
+@router.post("/scan")
+def scan_months(request: ScanRequest) -> Dict[str, Any]:
     rh_root = get_rh_root_for_year(request.year)
     state_manager = StateManager(rh_root)
-    merger = PDFMergerEngine()
-
-    final_results = {}
-
-    for month_key in request.months:
-
-        output_folder = os.path.join(rh_root, "14", month_key)
-        os.makedirs(output_folder, exist_ok=True)
-
-        output_pdf, warnings = merger.merge_month(
-            month_key,
-            rh_root,
-            output_folder
-        )
-
-        # atualizar state
-        state = state_manager.load_state(request.year)
-        state["months"][month_key]["base_join"] = {
-            "path": output_pdf,
-            "created": datetime.datetime.now().isoformat(),
-            "warnings": warnings
-        }
-        state_manager.save_state(request.year, state)
-
-        final_results[month_key] = {
-            "output_pdf": output_pdf,
-            "warnings": warnings
-        }
-
-    return final_results
-from backend.core.pdf.merger import PDFMergerEngine
-import datetime
-
-class JoinRequest(BaseModel):
-    year: str
-    months: List[str]
-
-
-@router.post("/join/base")
-def generate_base_join(request: JoinRequest):
-    rh_root = get_rh_root_for_year(request.year)
-    state_manager = StateManager(rh_root)
-    merger = PDFMergerEngine()
+    scanner = RHScanner(rh_root, state_manager)
 
     results = {}
 
     for month_key in request.months:
-        output_folder = os.path.join(rh_root, "14", month_key)
-        os.makedirs(output_folder, exist_ok=True)
+        scan_info = scanner.scan_month(request.year, month_key)
+        state_manager.update_scan_info(request.year, month_key, scan_info["groups"])
+        results[month_key] = scan_info
 
-        output_pdf, warnings = merger.merge_month(
-            month_key,
-            rh_root,
-            output_folder
-        )
+    return {"year": request.year, "months": results}
 
-        # update state
-        state = state_manager.load_state(request.year)
-        state["months"][month_key]["base_join"] = {
-            "path": output_pdf,
-            "created": datetime.datetime.now().isoformat(),
-            "warnings": warnings
-        }
-        state_manager.save_state(request.year, state)
 
-        results[month_key] = {
-            "pdf": output_pdf,
-            "warnings": warnings
-        }
+@router.post("/join/base")
+def join_base(request: JoinRequest):
+    rh_root = get_rh_root_for_year(request.year)
+    state_manager = StateManager(rh_root)
+    merger = PDFMergerEngine(rh_root)
 
-    return results
+    output = {}
+
+    for month_key in request.months:
+        state = state_manager.load_state(request.year, month_key)
+
+        if "groups" not in state:
+            raise HTTPException(400, f"Mês {month_key} ainda não foi scaneado.")
+
+        pdf_path, warnings = merger.merge_month(month_key, state["groups"])
+
+        state["base_pdf"] = pdf_path
+        state["base_pdf_created"] = datetime.datetime.now().isoformat()
+        state["warnings"] = warnings
+
+        state_manager.save_state(request.year, month_key, state)
+
+        output[month_key] = {"pdf": pdf_path, "warnings": warnings}
+
+    return output

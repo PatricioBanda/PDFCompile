@@ -1,72 +1,41 @@
 import os
 from PyPDF2 import PdfMerger
-from backend.core.pdf.image_converter import convert_image_to_pdf
+from backend.utils.path_utils import ensure_dir, join_path
 
 class PDFMergerEngine:
-    
-    def __init__(self):
-        pass
+    def __init__(self, rh_root: str):
+        self.rh_root = rh_root
+        self.output_dir = join_path(rh_root, "14")
+        ensure_dir(self.output_dir)
 
-    def collect_files(self, group_path):
+    def merge_month(self, month_key: str, groups: list):
         """
-        Obtém lista de ficheiros válidos para merge (pdf + imagens).
-        Ordena alfabeticamente.
+        Receives groups = scanner_result["groups"]
+        Produces base_<month>.pdf inside RH/<year>/14/
         """
-        if not os.path.exists(group_path):
-            return []
-
-        files = [
-            os.path.join(group_path, f)
-            for f in os.listdir(group_path)
-            if os.path.isfile(os.path.join(group_path, f)) 
-               and not f.startswith("~")
-        ]
-        
-        # ordenar alfabeticamente
-        files.sort(key=lambda x: os.path.basename(x).lower())
-        return files
-
-    def prepare_file(self, filepath):
-        """
-        Se for imagem → converter para PDF temporário.
-        Se for PDF → usar diretamente.
-        """
-        ext = filepath.lower().split(".")[-1]
-
-        if ext in ["jpg", "jpeg", "png", "bmp", "gif", "tiff"]:
-            return convert_image_to_pdf(filepath)
-        return filepath
-
-    def merge_month(self, month_key, rh_root, output_folder):
-        """
-        Junta ficheiros dos grupos 2..13 para um mês.
-        Retorna: caminho final + lista de grupos vazios.
-        """
-
-        groups = [str(i) for i in range(2, 14)]
-        group_warnings = []
-
-        merger = PdfMerger()
+        pdfs = []
+        warnings = []
 
         for g in groups:
-            group_path = os.path.join(rh_root, g, month_key)
+            for file in sorted(g["files"]):
+                pdfs.append(file)
 
-            files = self.collect_files(group_path)
+            if len(g["files"]) == 0:
+                warnings.append(f"Grupo {g['group']} vazio.")
 
-            if not files:
-                group_warnings.append(f"Grupo {g} vazio")
-                continue
+        output_path = join_path(self.output_dir, f"base_{month_key}.pdf")
 
-            for f in files:
-                prepared = self.prepare_file(f)
-                merger.append(prepared)
+        if pdfs:
+            merger = PdfMerger()
+            for p in pdfs:
+                try:
+                    merger.append(p)
+                except Exception as e:
+                    warnings.append(f"Erro em {p}: {str(e)}")
 
-        # Criar pasta de saída
-        os.makedirs(output_folder, exist_ok=True)
+            merger.write(output_path)
+            merger.close()
+        else:
+            warnings.append("Nenhum PDF encontrado no mês.")
 
-        output_pdf = os.path.join(output_folder, f"{month_key}_BASE_JOIN.pdf")
-
-        merger.write(output_pdf)
-        merger.close()
-
-        return output_pdf, group_warnings
+        return output_path, warnings
